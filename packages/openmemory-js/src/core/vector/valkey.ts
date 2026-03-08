@@ -194,6 +194,35 @@ export class ValkeyVectorStore implements VectorStore {
         return results;
     }
 
+    async getVectorsByIds(ids: string[]): Promise<Map<string, Array<{ sector: string; vector: number[]; dim: number }>>> {
+        const result = new Map<string, Array<{ sector: string; vector: number[]; dim: number }>>();
+        if (!ids.length) return result;
+        // Build all potential keys using known sectors to enable a single pipelined batch fetch
+        const known_sectors = ["episodic", "semantic", "procedural", "emotional", "reflective"];
+        const key_meta: Array<{ key: string; id: string; sector: string }> = [];
+        for (const id of ids) {
+            for (const sector of known_sectors) {
+                key_meta.push({ key: this.getKey(id, sector), id, sector });
+            }
+        }
+        const pipe = this.client.pipeline();
+        for (const { key } of key_meta) {
+            pipe.hmget(key, "v", "dim");
+        }
+        const pipe_results = await pipe.exec();
+        pipe_results?.forEach((r, idx) => {
+            if (r && r[1]) {
+                const [v, dim] = r[1] as [Buffer | null, string | null];
+                if (v && dim) {
+                    const { id, sector } = key_meta[idx];
+                    if (!result.has(id)) result.set(id, []);
+                    result.get(id)!.push({ sector, vector: bufferToVector(v), dim: parseInt(dim) });
+                }
+            }
+        });
+        return result;
+    }
+
     async getVectorsBySector(sector: string): Promise<Array<{ id: string; vector: number[]; dim: number }>> {
         const results: Array<{ id: string; vector: number[]; dim: number }> = [];
         let cursor = "0";

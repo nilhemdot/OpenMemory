@@ -103,6 +103,26 @@ export class PostgresVectorStore implements VectorStore {
         }
     }
 
+    async getVectorsByIds(ids: string[]): Promise<Map<string, Array<{ sector: string; vector: number[]; dim: number }>>> {
+        const result = new Map<string, Array<{ sector: string; vector: number[]; dim: number }>>();
+        if (!ids.length) return result;
+        if (this.usePgVector) {
+            const rows = await this.db.all_async(`select id,sector,v::text as v_txt,dim from ${this.table} where id = ANY($1)`, [ids]);
+            for (const row of rows) {
+                if (!result.has(row.id)) result.set(row.id, []);
+                result.get(row.id)!.push({ sector: row.sector, vector: JSON.parse(row.v_txt), dim: row.dim });
+            }
+        } else {
+            const ph = ids.map(() => "?").join(",");
+            const rows = await this.db.all_async(`select id,sector,v,dim from ${this.table} where id in (${ph})`, ids);
+            for (const row of rows) {
+                if (!result.has(row.id)) result.set(row.id, []);
+                result.get(row.id)!.push({ sector: row.sector, vector: bufferToVector(row.v), dim: row.dim });
+            }
+        }
+        return result;
+    }
+
     async getVectorsBySector(sector: string): Promise<Array<{ id: string; vector: number[]; dim: number }>> {
         if (this.usePgVector) {
             const rows = await this.db.all_async(`select id,v::text as v_txt,dim from ${this.table} where sector=$1`, [sector]);

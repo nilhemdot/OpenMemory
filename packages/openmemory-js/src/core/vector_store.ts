@@ -5,5 +5,6 @@ export interface VectorStore {
     searchSimilar(sector: string, queryVec: number[], topK: number, user_id?: string): Promise<Array<{ id: string; score: number }>>;
     getVector(id: string, sector: string): Promise<{ vector: number[]; dim: number } | null>;
     getVectorsById(id: string): Promise<Array<{ sector: string; vector: number[]; dim: number }>>;
+    getVectorsByIds(ids: string[]): Promise<Map<string, Array<{ sector: string; vector: number[]; dim: number }>>>;
     getVectorsBySector(sector: string): Promise<Array<{ id: string; vector: number[]; dim: number }>>;
 }
