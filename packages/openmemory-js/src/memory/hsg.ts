@@ -166,12 +166,11 @@ function has_temporal_markers(text: string): boolean {
 }
 
 
-async function compute_tag_match_score(memory_id: string, query_tokens: Set<string>): Promise<number> {
-    const mem = await q.get_mem.get(memory_id);
-    if (!mem?.tags) return 0;
+function compute_tag_match_score(tags_json: string | null | undefined, query_tokens: Set<string>): number {
+    if (!tags_json) return 0;
 
     try {
-        const tags = JSON.parse(mem.tags);
+        const tags = JSON.parse(tags_json);
         if (!Array.isArray(tags)) return 0;
 
         let matches = 0;
@@ -669,12 +668,11 @@ export interface multi_vec_fusion_weights {
     temporal_dimension_weight: number;
     reflective_dimension_weight: number;
 }
-export async function calc_multi_vec_fusion_score(
-    mid: string,
+export function calc_multi_vec_fusion_score(
+    vecs: Array<{ sector: string; vector: number[] }>,
     qe: Record<string, number[]>,
     w: multi_vec_fusion_weights,
-): Promise<number> {
-    const vecs = await vector_store.getVectorsById(mid);
+): number {
     let sum = 0,
         tot = 0;
     const wm: Record<string, number> = {
@@ -697,6 +695,8 @@ export async function calc_multi_vec_fusion_score(
 }
 const cache = new Map<string, { r: hsg_q_result[]; t: number }>();
 const sal_cache = new Map<string, { s: number; t: number }>();
+const CACHE_MAX = 500;
+const SAL_CACHE_MAX = 2000;
 
 const seg_cache = new Map<number, any[]>();
 const coact_buf: Array<[string, string]> = [];
@@ -744,6 +744,10 @@ const get_sal = async (id: string, def_sal: number): Promise<number> => {
     if (c && Date.now() - c.t < TTL) return c.s;
     const m = await q.get_mem.get(id);
     const s = m?.salience ?? def_sal;
+    if (sal_cache.size >= SAL_CACHE_MAX) {
+        const first = sal_cache.keys().next().value;
+        if (first !== undefined) sal_cache.delete(first);
+    }
     sal_cache.set(id, { s, t: Date.now() });
     return s;
 };
@@ -819,18 +823,19 @@ export async function hsg_query(
             : await expand_via_waypoints(Array.from(ids), k * 2);
         for (const e of exp) ids.add(e.id);
 
+        const ids_arr = Array.from(ids);
+
+        // Batch-fetch all memories and vectors in two round-trips instead of N+N
+        const [all_mems_arr, vec_map] = await Promise.all([
+            q.get_mems_by_ids.all(ids_arr),
+            vector_store.getVectorsByIds(ids_arr),
+        ]);
+        const mem_map = new Map<string, any>();
+        for (const m of all_mems_arr) mem_map.set(m.id, m);
+
         let keyword_scores = new Map<string, number>();
         if (tier === "hybrid") {
-            const all_mems = await Promise.all(
-                Array.from(ids).map(async (id) => {
-                    const m = await q.get_mem.get(id);
-                    return m ? { id, content: m.content } : null;
-                }),
-            );
-            const valid_mems = all_mems.filter((m) => m !== null) as Array<{
-                id: string;
-                content: string;
-            }>;
+            const valid_mems = all_mems_arr.map((m: any) => ({ id: m.id, content: m.content }));
             keyword_scores = await keyword_filter_memories(
                 qt,
                 valid_mems,
@@ -839,13 +844,14 @@ export async function hsg_query(
         }
 
         const res: hsg_q_result[] = [];
-        for (const mid of Array.from(ids)) {
-            const m = await q.get_mem.get(mid);
+        for (const mid of ids_arr) {
+            const m = mem_map.get(mid);
             if (!m || (f?.minSalience && m.salience < f.minSalience)) continue;
             if (f?.user_id && m.user_id !== f.user_id) continue;
             if (f?.startTime && m.created_at < f.startTime) continue;
             if (f?.endTime && m.created_at > f.endTime) continue;
-            const mvf = await calc_multi_vec_fusion_score(mid, qe, w);
+            const vecs = vec_map.get(mid) || [];
+            const mvf = calc_multi_vec_fusion_score(vecs, qe, w);
             const csr = await calculateCrossSectorResonanceScore(
                 m.primary_sector,
                 qc.primary,
@@ -881,7 +887,7 @@ export async function hsg_query(
             const rec_sc = calc_recency_score(m.last_seen_at);
 
 
-            const tag_match = await compute_tag_match_score(mid, qtk);
+            const tag_match = compute_tag_match_score(m.tags, qtk);
 
             const keyword_boost =
                 tier === "hybrid"
@@ -895,8 +901,7 @@ export async function hsg_query(
                 keyword_boost,
                 tag_match,
             );
-            const msec = await vector_store.getVectorsById(mid);
-            const sl = msec.map((v) => v.sector);
+            const sl = vecs.map((v: { sector: string }) => v.sector);
             res.push({
                 id: mid,
                 content: m.content,
@@ -928,11 +933,12 @@ export async function hsg_query(
         const tids = top.map((r) => r.id);
 
 
-        for (const r of top) {
-            const cur_fb = (await q.get_mem.get(r.id))?.feedback_score || 0;
+        // Batch feedback updates in parallel using pre-fetched feedback_score
+        await Promise.all(top.map((r) => {
+            const cur_fb = mem_map.get(r.id)?.feedback_score || 0;
             const new_fb = cur_fb * 0.9 + r.score * 0.1;
-            await q.upd_feedback.run(r.id, new_fb);
-        }
+            return q.upd_feedback.run(r.id, new_fb);
+        }));
 
         for (let i = 0; i < tids.length; i++) {
             for (let j = i + 1; j < tids.length; j++) {
@@ -959,11 +965,17 @@ export async function hsg_query(
                         rsal,
                         lns,
                     );
-                for (const u of pru) {
-                    const linked_mem = await q.get_mem.get(u.node_id);
+                // Batch-fetch all linked node memories and update in parallel
+                const linked_node_ids = pru.map((u: any) => u.node_id);
+                const linked_mems_arr = await q.get_mems_by_ids.all(linked_node_ids);
+                const linked_mem_map = new Map<string, any>();
+                for (const lm of linked_mems_arr) linked_mem_map.set(lm.id, lm);
+                const now_ms = Date.now();
+                await Promise.all(pru.map((u: any) => {
+                    const linked_mem = linked_mem_map.get(u.node_id);
                     if (linked_mem) {
                         const time_diff =
-                            (Date.now() - linked_mem.last_seen_at) / 86400000;
+                            (now_ms - linked_mem.last_seen_at) / 86400000;
                         const decay_fact = Math.exp(-0.02 * time_diff);
                         const ctx_boost =
                             hybrid_params.gamma *
@@ -973,14 +985,15 @@ export async function hsg_query(
                             0,
                             Math.min(1, linked_mem.salience + ctx_boost),
                         );
-                        await q.upd_seen.run(
+                        return q.upd_seen.run(
                             u.node_id,
-                            Date.now(),
+                            now_ms,
                             new_sal,
-                            Date.now(),
+                            now_ms,
                         );
                     }
-                }
+                    return Promise.resolve();
+                }));
             }
         }
 
@@ -990,6 +1003,10 @@ export async function hsg_query(
             ).catch(() => { });
         }
 
+        if (cache.size >= CACHE_MAX) {
+            const first = cache.keys().next().value;
+            if (first !== undefined) cache.delete(first);
+        }
         cache.set(h, { r: top, t: Date.now() });
         return top;
     } finally {

@@ -17,6 +17,7 @@ type q_type = {
     upd_mem_with_sector: { run: (...p: any[]) => Promise<void> };
     del_mem: { run: (...p: any[]) => Promise<void> };
     get_mem: { get: (id: string) => Promise<any> };
+    get_mems_by_ids: { all: (ids: string[]) => Promise<any[]> };
     get_mem_by_simhash: { get: (simhash: string) => Promise<any> };
     all_mem: { all: (limit: number, offset: number) => Promise<any[]> };
     all_mem_by_sector: {
@@ -309,6 +310,12 @@ if (is_pg) {
         },
         get_mem: {
             get: (id) => get_async(`select * from ${m} where id=$1`, [id]),
+        },
+        get_mems_by_ids: {
+            all: (ids: string[]) => {
+                if (!ids.length) return Promise.resolve([]);
+                return all_async(`select * from ${m} where id = ANY($1)`, [ids]);
+            },
         },
         get_mem_by_simhash: {
             get: (simhash) =>
@@ -698,6 +705,13 @@ if (is_pg) {
         del_mem: { run: (...p) => exec("delete from memories where id=?", p) },
         get_mem: {
             get: (id) => one("select * from memories where id=?", [id]),
+        },
+        get_mems_by_ids: {
+            all: (ids: string[]) => {
+                if (!ids.length) return Promise.resolve([]);
+                const ph = ids.map(() => "?").join(",");
+                return many(`select * from memories where id in (${ph})`, ids);
+            },
         },
         get_mem_by_simhash: {
             get: (simhash) =>
