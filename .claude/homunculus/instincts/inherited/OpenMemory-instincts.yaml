@@ -1,0 +1,319 @@
+# Instincts generated from https://github.com/nilhemdot/OpenMemory
+# Generated: 2026-05-17T21:46:09.947Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: OpenMemory-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: chore
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: chore(deps): bump the npm_and_yarn group across 2 directories with 17 updates
+
+---
+id: OpenMemory-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Commit Length
+
+## Action
+
+Write moderate-length commit messages (~77 characters)
+
+## Evidence
+
+- Average commit message length: 77 chars
+- Based on 1 commits
+
+---
+id: OpenMemory-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Naming Files
+
+## Action
+
+Use kebab-case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: kebab-case
+
+---
+id: OpenMemory-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: OpenMemory-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: OpenMemory-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/nilhemdot/OpenMemory
+---
+
+# OpenMemory Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: openmemory-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct File Naming
+
+## Action
+
+Name the file using kebab-case
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files
+
+---
+id: openmemory-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions
+
+---
+id: openmemory-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes
+
+---
+id: openmemory-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for the constant name
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants
+
+---
+id: openmemory-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Import Style
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern in codeStyle.importStyle
+
+---
+id: openmemory-instinct-export-style
+trigger: "When exporting from a module"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle
+
+---
+id: openmemory-instinct-git-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Git Conventional Commits
+
+## Action
+
+Use the conventional commit format with a prefix (e.g., chore:)
+
+## Evidence
+
+- Pattern in commits.type
+- Example: chore(deps): bump the npm_and_yarn group...
+
+---
+id: openmemory-instinct-git-chore-prefix
+trigger: "When committing dependency or maintenance changes"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Git Chore Prefix
+
+## Action
+
+Use the 'chore' prefix in the commit message
+
+## Evidence
+
+- Pattern in commits.prefixes
+- Example: chore(deps): bump the npm_and_yarn group...
+
+---
+id: openmemory-instinct-monorepo-structure
+trigger: "When adding a new package or app"
+confidence: 0.9
+domain: architecture
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Monorepo Structure
+
+## Action
+
+Place it under the 'packages' or 'apps' folder
+
+## Evidence
+
+- Pattern in architecture.folderStructure.commonFolders
+
+---
+id: openmemory-instinct-test-location
+trigger: "When creating new tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: nilhemdot/OpenMemory
+---
+
+# Openmemory Instinct Test Location
+
+## Action
+
+Place test files in a separate location from source files
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation
+
